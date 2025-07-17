@@ -1,11 +1,14 @@
-cmake_minimum_required(VERSION 2.8...3.22 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.6...3.22 FATAL_ERROR)
 project(dhewm3sdk)
 
-option(BASE		"Build the base (game/) game code" ON)
+include(CheckCXXCompilerFlag)
+include(TestBigEndian)
+
+option(BASE		"Build the base game code" ON)
 set(BASE_NAME	"base" CACHE STRING "Name of the mod built from game/ (will result in \${BASE_NAME}.dll)")
 set(BASE_DEFS	"GAME_DLL" CACHE STRING "Compiler definitions for the mod built from game/")
 
-option(D3XP		"Build the d3xp/ game code" ON)
+option(D3XP		"Build the d3xp game code" ON)
 set(D3XP_NAME	"d3xp" CACHE STRING "Name of the mod built from d3xp/ (will result in \${D3XP_NAME}.dll)")
 set(D3XP_DEFS	"GAME_DLL;_D3XP;CTF" CACHE STRING "Compiler definitions for the mod built from d3xp/")
 
@@ -14,6 +17,12 @@ option(ONATIVE	"Optimize for the host CPU" OFF)
 if(NOT MSVC) # GCC/clang or compatible, hopefully
 	option(FORCE_COLORED_OUTPUT "Always produce ANSI-colored compiler warnings/errors (GCC/Clang only; esp. useful with ninja)." OFF)
 	option(ASAN		"Enable GCC/Clang Adress Sanitizer (ASan)" OFF) # TODO: MSVC might also support this, somehow?
+	option(UBSAN	"Enable GCC/Clang Undefined Behavior Sanitizer (UBSan), implies HARDLINK_GAME" OFF)
+
+	if(UBSAN AND NOT HARDLINK_GAME)
+		message(STATUS "UBSAN requires linking the gamecode into the executable, will enable HARDLINK_GAME")
+		set(HARDLINK_GAME ON)
+	endif()
 endif()
 
 set(src_game_mod
@@ -150,26 +159,68 @@ if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE "RelWithDebInfo")
 endif()
 
-
-include(CheckCXXCompilerFlag)
-include(TestBigEndian)
+if(CMAKE_MAJOR_VERSION LESS 3 OR ( CMAKE_MAJOR_VERSION EQUAL 3 AND CMAKE_MINOR_VERSION LESS 8 ))
+	# cmake < 3.8 doesn't support source_group(TREE ...) so replace it with a dummy
+	# (it's only cosmetical anyway, to make source files show up properly in Visual Studio)
+	function(source_group)
+	endfunction()
+	message(STATUS "Using CMake < 3.8, doesn't support source_group(TREE ...), replacing it with a dummy")
+	message(STATUS "  (this is only relevants for IDEs, doesn't matter for just compiling dhewm3)")
+#else()
+#	message(STATUS "Using CMake >= 3.8, supports source_group(TREE ...)")
+endif()
 
 set(D3_COMPILER_IS_CLANG FALSE)
 set(D3_COMPILER_IS_GCC_OR_CLANG FALSE)
 
-if(NOT MSVC)
-	# check if this is some kind of clang (Clang, AppleClang, whatever)
-	# (convert compiler ID to lowercase so we match Clang, clang, AppleClang etc, regardless of case)
-	string(TOLOWER ${CMAKE_CXX_COMPILER_ID} compiler_id_lower)
-	if(compiler_id_lower MATCHES ".*clang.*")
-		message(STATUS "Compiler \"${CMAKE_CXX_COMPILER_ID}\" detected as some kind of clang")
-		set(D3_COMPILER_IS_CLANG TRUE)
-		set(D3_COMPILER_IS_GCC_OR_CLANG TRUE)
-	elseif(CMAKE_COMPILER_IS_GNUCC)
-		set(D3_COMPILER_IS_GCC_OR_CLANG TRUE)
+if(MSVC)
+	# todo: stuffs for MSVC
+else() # not MSVC
+
+if(NOT WIN32)
+	# libbacktrace support - TODO: might work with MinGW? we don't have a crash handler for win32 though..
+	include(CheckCSourceCompiles)
+	set(CMAKE_REQUIRED_LIBRARIES backtrace)
+	check_c_source_compiles( "#include <backtrace.h>
+	int main() { backtrace_create_state(NULL, 0, NULL, NULL); return 0; }" HAVE_LIBBACKTRACE )
+	unset(CMAKE_REQUIRED_LIBRARIES)
+
+	if(HAVE_LIBBACKTRACE)
+		set(sys_libs ${sys_libs} backtrace)
+		add_definitions(-DD3_HAVE_LIBBACKTRACE)
+		message(STATUS "Using libbacktrace")
+	else()
+		message(WARNING "libbacktrace wasn't found. It's not required but recommended, because it provides useful backtraces if dhewm3 crashes")
 	endif()
-	unset(compiler_id_lower)
-endif() # NOT MSVC
+	
+	# check if our SDL2 supports X11 in SDL_syswm so we can use it for DPI scaling ImGui
+	if(SDL2)
+		set(CMAKE_REQUIRED_LIBRARIES SDL2)
+		check_c_source_compiles( "#include <SDL_syswm.h>
+		int main() { SDL_SysWMinfo wmInfo = {}; wmInfo.info.x11.display = NULL; return 0; }" HAVE_SDL_X11)
+		unset(CMAKE_REQUIRED_LIBRARIES)
+		
+		if(HAVE_SDL_X11)
+			message(STATUS "This SDL2 has X11 support")
+			add_definitions(-DD3_SDL_X11)
+		endif()
+	endif()
+endif() # NOT WIN32
+
+# check if this is some kind of clang (Clang, AppleClang, whatever)
+# (convert compiler ID to lowercase so we match Clang, clang, AppleClang etc, regardless of case)
+string(TOLOWER ${CMAKE_CXX_COMPILER_ID} compiler_id_lower)
+if(compiler_id_lower MATCHES ".*clang.*")
+	message(STATUS "Compiler \"${CMAKE_CXX_COMPILER_ID}\" detected as some kind of clang")
+	set(D3_COMPILER_IS_CLANG TRUE)
+	set(D3_COMPILER_IS_GCC_OR_CLANG TRUE)
+elseif(CMAKE_COMPILER_IS_GNUCC)
+	set(D3_COMPILER_IS_GCC_OR_CLANG TRUE)
+endif()
+unset(compiler_id_lower)
+
+endif() # not MSVC
+
 
 # compiler specific flags
 if(D3_COMPILER_IS_GCC_OR_CLANG)
@@ -190,12 +241,12 @@ if(D3_COMPILER_IS_GCC_OR_CLANG)
 		endif ()
 	endif ()
 
-	set(CMAKE_C_FLAGS_DEBUG "-g -D_DEBUG -O0")
+	set(CMAKE_C_FLAGS_DEBUG "-g -ggdb -D_DEBUG -O0")
 	set(CMAKE_C_FLAGS_DEBUGALL "-g -ggdb -D_DEBUG")
 	set(CMAKE_C_FLAGS_PROFILE "-g -ggdb -D_DEBUG -O1 -fno-omit-frame-pointer")
-	set(CMAKE_C_FLAGS_RELEASE "-O2 -fno-math-errno -fno-trapping-math -fomit-frame-pointer")
-	set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g -ggdb -fno-math-errno -fno-trapping-math -fno-omit-frame-pointer")
-	set(CMAKE_C_FLAGS_MINSIZEREL "-Os -fno-math-errno -fno-trapping-math -fomit-frame-pointer")
+	set(CMAKE_C_FLAGS_RELEASE "-O2 -fno-math-errno -fno-trapping-math  -ffinite-math-only -fomit-frame-pointer")
+	set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -ggdb -O2 -fno-math-errno -fno-trapping-math  -ffinite-math-only -fno-omit-frame-pointer")
+	set(CMAKE_C_FLAGS_MINSIZEREL "-Os -fno-math-errno -fno-trapping-math  -ffinite-math-only -fomit-frame-pointer")
 
 	set(CMAKE_CXX_FLAGS_DEBUGALL ${CMAKE_C_FLAGS_DEBUGALL})
 	set(CMAKE_CXX_FLAGS_PROFILE ${CMAKE_C_FLAGS_PROFILE})
@@ -203,13 +254,20 @@ if(D3_COMPILER_IS_GCC_OR_CLANG)
 	add_compile_options(-fno-strict-aliasing)
 	# dear idiot compilers, don't fuck up math code with useless FMA "optimizations"
 	# (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=100839)
-	add_compile_options(-ffp-contract=off)
-
+	CHECK_CXX_COMPILER_FLAG("-ffp-contract=off" cxx_has_fp-contract)
+	if(cxx_has_fp-contract)
+		add_compile_options(-ffp-contract=off)
+	endif()
+	
 	if(ASAN)
 		# if this doesn't work, ASan might not be available on your platform, don't set ASAN then..
 		add_compile_options(-fsanitize=address)
-		# TODO: do we need to link against libasan or sth? or is it enough if dhewm3 executable does?
-		# set(ldflags ${ldflags} -fsanitize=address)
+		set(sys_libs ${sys_libs} -fsanitize=address)
+	endif()
+	if(UBSAN)
+		# if this doesn't work, UBSan might not be available on your platform, don't set UBSAN then..
+		add_compile_options(-fsanitize=undefined)
+		set(sys_libs ${sys_libs} -fsanitize=undefined)
 	endif()
 
 	if(NOT AROS)
@@ -223,19 +281,23 @@ if(D3_COMPILER_IS_GCC_OR_CLANG)
 	# TODO fix these warnings
 	add_compile_options(-Wno-sign-compare)
 	add_compile_options(-Wno-switch)
-	add_compile_options(-Wno-strict-overflow)
-	
-	if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
-		# ‘void* memset(void*, int, size_t)’ clearing an object of type ‘struct refSound_t’ with no trivial copy-assignment; use assignment or value-initialization instead
-		# ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘class idDrawVert’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead
-		# etc - I don't care, all the cases I've checked were safe and I'm not gonna add (void*) casts in 1000 places
-		#       (that would make merging new mods painful)
-		add_compile_options(-Wno-class-memaccess)
-	endif()
 
 	CHECK_CXX_COMPILER_FLAG("-Woverloaded-virtual" cxx_has_Woverload_virtual)
 	if(cxx_has_Woverload_virtual)
-		add_compile_options(-Woverloaded-virtual)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Woverloaded-virtual")
+	endif()
+	
+	# shut up about using memcpy() on classes, in the cases doom3 uses it it seems to be fine
+	CHECK_CXX_COMPILER_FLAG("-Wno-class-memaccess" cxx_has_Wno-class-memaccess)
+	if(cxx_has_Wno-class-memaccess)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess")
+	endif()
+
+	# ignore warnings about variables named "requires" for now (in C++20 it's a keyword,
+	#  but currently we don't even use C++11 features)
+	CHECK_CXX_COMPILER_FLAG("-Wno-c++20-compat" cxx_has_Wno-cpp20-compat)
+	if(cxx_has_Wno-cpp20-compat)
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-c++20-compat")
 	endif()
 
 	if(AROS)
@@ -245,11 +307,11 @@ if(D3_COMPILER_IS_GCC_OR_CLANG)
 		add_definitions(-DMACOS_X=1)
 
 		if(cpu STREQUAL "x86_64")
-			add_compile_options(-arch x86_64 -mmacosx-version-min=10.6)
-			set(ldflags "${ldflags} -arch x86_64 -mmacosx-version-min=10.6")
+			add_compile_options(-arch x86_64 -mmacosx-version-min=10.7)
+			set(ldflags "${ldflags} -arch x86_64 -mmacosx-version-min=10.7")
 		elseif(cpu STREQUAL "arm64")
-			add_compile_options(-arch arm64 -mmacosx-version-min=11.0)
-			set(ldflags "${ldflags} -arch arm64 -mmacosx-version-min=11.0")
+			add_compile_options(-arch arm64 -mmacosx-version-min=10.7)
+			set(ldflags "${ldflags} -arch arm64 -mmacosx-version-min=10.7")
 		elseif(cpu STREQUAL "x86")
 			CHECK_CXX_COMPILER_FLAG("-arch i386" cxx_has_arch_i386)
 			if(cxx_has_arch_i386)
@@ -271,18 +333,25 @@ if(D3_COMPILER_IS_GCC_OR_CLANG)
 		else()
 			message(FATAL_ERROR "Unsupported CPU architecture for OSX")
 		endif()
+
+		set(sys_libs ${sys_libs} "-framework Carbon -framework Cocoa -framework IOKit")
 	elseif(WIN32)
-		set(ldflags "${ldflags} -static-libgcc -static-libstdc++")
+		# use 8MB stack instead of 1MB, so big models don't overflow it with _alloca()
+		set(ldflags "${ldflags} -static-libgcc -static-libstdc++ -Wl,--stack,8388608")
 	elseif(os STREQUAL "linux")
-		# set(sys_libs ${sys_libs} dl) FIXME: -ldl needed anyway?
+		set(sys_libs ${sys_libs} dl)
+	elseif(os STREQUAL "freebsd")
+		find_library(EXECINFO_LIBRARIES execinfo /usr/lib /usr/local/lib)
+		set(sys_libs ${sys_libs} ${EXECINFO_LIBRARIES})
 	endif()
 elseif(MSVC)
-	add_definitions(/MP) # parallel build (use all cores, or as many as configured in VS)
-
-	add_compile_options(/W4)
+	add_compile_options(/MP) # parallel build (use all cores, or as many as configured in VS)
+	
+	add_compile_options(/W3) # TODO: was /W4, caused trouble with VS2019 (and/or its integrated CMake? or only HarrieVG's setup?)
 	add_compile_options(/we4840) # treat as error when passing a class to a vararg-function (probably printf-like)
 	# treat several kinds of truncating int<->pointer conversions as errors (for more 64bit-safety)
 	add_compile_options(/we4306 /we4311 /we4312 /we4302)
+	# ignore the following warnings:
 	add_compile_options(/wd4100) # unreferenced formal parameter
 	add_compile_options(/wd4127) # conditional expression is constant
 	add_compile_options(/wd4244) # possible loss of data
@@ -291,20 +360,23 @@ elseif(MSVC)
 	add_compile_options(/wd4714) # 'function' marked as __forceinline not inlined
 	add_compile_options(/wd4996) # 'function': was declared deprecated
 	add_compile_options(/wd4068) # unknown pragma
-	add_compile_options(/wd4458) # declaration of 'bla' hides class member
+	add_compile_options(/wd4458) # declaration of 'variable' hides class member
 	add_definitions(-D_ALLOW_KEYWORD_MACROS) # because of the "#define private public" and "#define protected public" in TypeInfo.cpp
 	set(CMAKE_C_FLAGS_DEBUG "-D_DEBUG /Od /Zi /MDd")
 	set(CMAKE_C_FLAGS_RELEASE "/Ox /Oy /MD")
 	set(CMAKE_C_FLAGS_RELWITHDEBINFO "/Ox /Oy /Zi /MD")
 	set(CMAKE_C_FLAGS_MINSIZEREL "/Ox /Oy /Os /MD")
+	# use 8MB stack instead of 1MB, so big models don't overflow it with _alloca()
+	set(ldflags "${ldflags} /STACK:8388608")
 else()
 	message(FATAL_ERROR "Unsupported compiler")
 endif()
 
 set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
-set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_C_FLAGS_RELWITHDEBINFO})
-set(CMAKE_CXX_FLAGS_MINSIZEREL ${CMAKE_C_FLAGS_MINSIZEREL})
+# disable assertions in release builds
+set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG ${CMAKE_C_FLAGS_RELEASE}")
+set(CMAKE_CXX_FLAGS_MINSIZEREL "-DNDEBUG ${CMAKE_C_FLAGS_MINSIZEREL}")
 
 # mingw and msvc
 if(WIN32)
@@ -342,18 +414,6 @@ function(add_globbed_headers SRCLIST PATHPREFIX)
 	file(GLOB_RECURSE tmp_hdrs RELATIVE "${CMAKE_SOURCE_DIR}" "${PATHPREFIX}/*.h")
 	set(${SRCLIST} ${tmp_hdrs} ${${SRCLIST}} PARENT_SCOPE)
 endfunction()
-
-if(CMAKE_MAJOR_VERSION LESS 3 OR ( CMAKE_MAJOR_VERSION EQUAL 3 AND CMAKE_MINOR_VERSION LESS 8 ))
-	# cmake < 3.8 doesn't support source_group(TREE ...) so replace it with a dummy
-	# (it's only cosmetical anyway, to make source files show up properly in Visual Studio)
-	function(source_group)
-	endfunction()
-	message(STATUS "Using CMake < 3.8, doesn't support source_group(TREE ...), replacing it with a dummy")
-	message(STATUS "  (this is only relevants for IDEs, doesn't matter for just compiling dhewm3)")
-#else()
-#	message(STATUS "Using CMake >= 3.8, supports source_group(TREE ...)")
-endif()
-
 
 set(src_game
 	game/AF.cpp

@@ -1842,6 +1842,93 @@ void idThread::Event_InfluenceActive( void ) {
 	}
 }
 
+// grimm -->
+
+/*
+================
+idThread::ExecCMD
+================
+*/
+void idThread::Event_ExecCMD( const char *text ) {
+
+	cmdSystem->BufferCommandText( CMD_EXEC_APPEND, text );
+
+}
+
+/* 
+================
+idThread::Tip
+================
+*/
+void idThread::Event_Tip( const char *message ) {
+
+	idPlayer *player = gameLocal.GetLocalPlayer();
+	if ( player ) {
+		player->ShowTip( "", message, true );
+	}
+
+}
+
+/* 
+================
+idThread::GetPlayer
+================
+*/
+void idThread::Event_GetPlayer( void ) {
+
+	idPlayer *player = gameLocal.GetLocalPlayer();
+	if ( player ) {
+		ReturnEntity( player ) ;
+	} else {
+		ReturnEntity( ( idEntity * )NULL );
+	}
+}
+
+
+/*
+=================
+idThread::Event_SetSlomoSound( float son );
+=================
+*/
+void idThread::Event_SetSlomoSound( float son ) {
+	if ( gameSoundWorld && son > 0.0f ) {
+		gameSoundWorld->SetSlowmo( true );
+		//gameSoundWorld->SetSlowmoSpeed( 0.8f );
+	}
+
+	if ( gameSoundWorld && son == 0.0f ) {
+		gameSoundWorld->SetSlowmo( false );
+		//gameSoundWorld->SetSlowmoSpeed( 1.0f );
+	}
+}
+
+/*
+=================
+idThread::Event_SetSlomoSpeed( float speed );;
+=================
+*/
+void idThread::Event_SetSlomoSpeed( float speed ) {
+
+	if ( !gameSoundWorld ) {
+		return;
+	}
+
+	if ( speed > 0.0f && speed < 1.0f ) {
+		gameSoundWorld->SetSlowmoSpeed( speed );
+	} else {
+		// the value must be between 0 and 1 so set it to something default.
+		if ( speed < 0.5f ) {
+			gameSoundWorld->SetSlowmoSpeed( 0.7f );
+		} 
+		if ( speed == 1 ) {
+			gameSoundWorld->SetSlowmoSpeed( 0.99f );
+		}
+		
+	}
+}
+
+// <-- grimm
+
 int idGameEditExt::ThreadGetNum(const idThread* thread) const
 {
 	return const_cast<idThread*>(thread)->GetThreadNum();

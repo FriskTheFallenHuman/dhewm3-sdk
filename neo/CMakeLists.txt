@@ -5,12 +5,8 @@ include(CheckCXXCompilerFlag)
 include(TestBigEndian)
 
 option(BASE		"Build the base game code" ON)
-set(BASE_NAME	"base" CACHE STRING "Name of the mod built from game/ (will result in \${BASE_NAME}.dll)")
+set(BASE_NAME	"grimm" CACHE STRING "Name of the mod built from game/ (will result in \${BASE_NAME}.dll)")
 set(BASE_DEFS	"GAME_DLL" CACHE STRING "Compiler definitions for the mod built from game/")
-
-option(D3XP		"Build the d3xp game code" ON)
-set(D3XP_NAME	"d3xp" CACHE STRING "Name of the mod built from d3xp/ (will result in \${D3XP_NAME}.dll)")
-set(D3XP_DEFS	"GAME_DLL;_D3XP;CTF" CACHE STRING "Compiler definitions for the mod built from d3xp/")
 
 option(ONATIVE	"Optimize for the host CPU" OFF)
 
@@ -29,14 +25,11 @@ set(src_game_mod
 	# add additional .cpp files of your mod in game/
 	# (that you added to the ones already existant in the SDK/in dhewm3)
 	# like "game/MyFile.cpp" (without quotes, one file per line)
+	game/Grab.h
+	game/Grab.cpp
+	game/physics/Force_Grab.h
+	game/physics/Force_Grab.cpp
 )
-
-set(src_d3xp_mod
-	# add additional .cpp files of your mod in d3xp/
-	# (that you added to the ones already existant in the SDK/in dhewm3)
-	# like "d3xp/MyFile.cpp" (without quotes, one file per line)
-)
-
 
 ########################################################################
 # You /probably/ don't need to change anything below here for your Mod #
@@ -490,84 +483,6 @@ set(src_game
 )
 
 add_globbed_headers(src_game "game")
-
-set(src_d3xp
-	d3xp/AF.cpp
-	d3xp/AFEntity.cpp
-	d3xp/Actor.cpp
-	d3xp/Camera.cpp
-	d3xp/Entity.cpp
-	d3xp/BrittleFracture.cpp
-	d3xp/Fx.cpp
-	d3xp/GameEdit.cpp
-	d3xp/Game_local.cpp
-	d3xp/Game_network.cpp
-	d3xp/Item.cpp
-	d3xp/IK.cpp
-	d3xp/Light.cpp
-	d3xp/Misc.cpp
-	d3xp/Mover.cpp
-	d3xp/Moveable.cpp
-	d3xp/MultiplayerGame.cpp
-	d3xp/Player.cpp
-	d3xp/PlayerIcon.cpp
-	d3xp/PlayerView.cpp
-	d3xp/Projectile.cpp
-	d3xp/Pvs.cpp
-	d3xp/SecurityCamera.cpp
-	d3xp/SmokeParticles.cpp
-	d3xp/Sound.cpp
-	d3xp/Target.cpp
-	d3xp/Trigger.cpp
-	d3xp/Weapon.cpp
-	d3xp/WorldSpawn.cpp
-	d3xp/ai/AAS.cpp
-	d3xp/ai/AAS_debug.cpp
-	d3xp/ai/AAS_pathing.cpp
-	d3xp/ai/AAS_routing.cpp
-	d3xp/ai/AI.cpp
-	d3xp/ai/AI_events.cpp
-	d3xp/ai/AI_pathing.cpp
-	d3xp/ai/AI_Vagary.cpp
-	d3xp/gamesys/DebugGraph.cpp
-	d3xp/gamesys/Class.cpp
-	d3xp/gamesys/Event.cpp
-	d3xp/gamesys/SaveGame.cpp
-	d3xp/gamesys/SysCmds.cpp
-	d3xp/gamesys/SysCvar.cpp
-	d3xp/gamesys/TypeInfo.cpp
-	d3xp/anim/Anim.cpp
-	d3xp/anim/Anim_Blend.cpp
-	d3xp/anim/Anim_Import.cpp
-	d3xp/anim/Anim_Testmodel.cpp
-	d3xp/script/Script_Compiler.cpp
-	d3xp/script/Script_Interpreter.cpp
-	d3xp/script/Script_Program.cpp
-	d3xp/script/Script_Thread.cpp
-	d3xp/physics/Clip.cpp
-	d3xp/physics/Force.cpp
-	d3xp/physics/Force_Constant.cpp
-	d3xp/physics/Force_Drag.cpp
-	d3xp/physics/Force_Field.cpp
-	d3xp/physics/Force_Spring.cpp
-	d3xp/physics/Physics.cpp
-	d3xp/physics/Physics_AF.cpp
-	d3xp/physics/Physics_Actor.cpp
-	d3xp/physics/Physics_Base.cpp
-	d3xp/physics/Physics_Monster.cpp
-	d3xp/physics/Physics_Parametric.cpp
-	d3xp/physics/Physics_Player.cpp
-	d3xp/physics/Physics_RigidBody.cpp
-	d3xp/physics/Physics_Static.cpp
-	d3xp/physics/Physics_StaticMulti.cpp
-	d3xp/physics/Push.cpp
-	d3xp/Grabber.cpp
-	d3xp/physics/Force_Grab.cpp
-
-	${src_d3xp_mod}
-)
-
-add_globbed_headers(src_d3xp "d3xp")
 
 set(src_idlib
 	idlib/bv/Bounds.cpp

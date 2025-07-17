@@ -1006,6 +1006,12 @@ void idMover::Event_PartBlocked( idEntity *blockingEntity ) {
 	if ( g_debugMover.GetBool() ) {
 		gameLocal.Printf( "%d: '%s' blocked by '%s'\n", gameLocal.slow.time, name.c_str(), blockingEntity->name.c_str() );
 	}
+	if ( blockingEntity->IsType( idMoveableGibItem::Type ) ) { // darknar, remove gib if is blocking the mover
+		blockingEntity->PostEventMS( &EV_Remove, 4.0 );
+	}
+	if (blockingEntity->IsType( idMoveableItem::Type ) ) { // darknar, remove gib if is blocking the mover
+		blockingEntity->PostEventMS( &EV_Remove, 4.0 );
+	}
 }
 
 /*
@@ -3845,6 +3851,12 @@ void idDoor::Event_PartBlocked( idEntity *blockingEntity ) {
 	if ( damage > 0.0f ) {
 		blockingEntity->Damage( this, this, vec3_origin, "damage_moverCrush", damage, INVALID_JOINT );
 	}
+	if (blockingEntity->IsType(idMoveableGibItem::Type)) { // darknar, remove gib if is blocking the mover
+		blockingEntity->PostEventMS(&EV_Remove, 4.0);
+	}
+	if (blockingEntity->IsType(idMoveableItem::Type)) { // darknar, remove gib if is blocking the mover
+		blockingEntity->PostEventMS(&EV_Remove, 4.0);
+	}
 }
 
 /*
@@ -4288,6 +4300,12 @@ void idPlat::Event_PartBlocked( idEntity *blockingEntity ) {
 	if ( damage > 0.0f ) {
 		blockingEntity->Damage( this, this, vec3_origin, "damage_moverCrush", damage, INVALID_JOINT );
 	}
+	if (blockingEntity->IsType(idMoveableGibItem::Type)) { // darknar, remove gib if is blocking the mover
+		blockingEntity->PostEventMS(&EV_Remove, 4.0);
+	}
+	if (blockingEntity->IsType(idMoveableItem::Type)) { // darknar, remove gib if is blocking the mover
+		blockingEntity->PostEventMS(&EV_Remove, 4.0);
+	}
 }
 
 
@@ -4378,6 +4396,12 @@ idMover_Periodic::Event_PartBlocked
 void idMover_Periodic::Event_PartBlocked( idEntity *blockingEntity ) {
 	if ( damage > 0.0f ) {
 		blockingEntity->Damage( this, this, vec3_origin, "damage_moverCrush", damage, INVALID_JOINT );
+	}
+	if (blockingEntity->IsType(idMoveableGibItem::Type)) { // darknar, remove gib if is blocking the mover
+		blockingEntity->PostEventMS(&EV_Remove, 4.0);
+	}
+	if (blockingEntity->IsType(idMoveableItem::Type)) { // darknar, remove gib if is blocking the mover
+		blockingEntity->PostEventMS(&EV_Remove, 4.0);
 	}
 }
 

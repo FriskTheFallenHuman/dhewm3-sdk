@@ -34,7 +34,6 @@ If you have questions concerning this license or the applicable additional terms
 #include "framework/BuildVersion.h"
 #include "framework/DeclEntityDef.h"
 #include "framework/FileSystem.h"
-#include "framework/Licensee.h"
 #include "renderer/ModelManager.h"
 
 #include "gamesys/SysCvar.h"
@@ -49,7 +48,13 @@ If you have questions concerning this license or the applicable additional terms
 #include "Misc.h"
 #include "Trigger.h"
 
+#include "framework/Licensee.h" // DG: for ID__DATE__
+
 #include "Game_local.h"
+
+#ifndef GAME_DLL
+#include "tools/compilers/aas/AASFileManager.h"
+#endif
 
 const int NUM_RENDER_PORTAL_BITS	= idMath::BitsForInteger( PS_BLOCK_ALL );
 
@@ -256,6 +261,28 @@ void idGameLocal::Clear( void ) {
 	memset( lagometer, 0, sizeof( lagometer ) );
 }
 
+
+// DG: hack to support the Demo version of Doom3
+// NOTE: I couldn't just make this a global bool variable that's initialized
+//       in idGameLocal::Init(), because we decide whether it's the demo
+//       after loading and initializing the game DLL (when loading the main menu)
+static bool (*isDemoFnPtr)(void) = NULL;
+bool IsDoom3DemoVersion()
+{
+	bool ret = isDemoFnPtr ? isDemoFnPtr() : false;
+	return ret;
+}
+
+static bool ( *updateDebuggerFnPtr )( idInterpreter *interpreter, idProgram *program, int instructionPointer ) = NULL;
+bool updateGameDebugger( idInterpreter *interpreter, idProgram *program, int instructionPointer ) {
+	bool ret = false;
+	if ( interpreter != NULL && program != NULL ) {
+		ret = updateDebuggerFnPtr ? updateDebuggerFnPtr( interpreter, program, instructionPointer ) : false;
+	}
+	return ret;
+}
+
+
 /*
 ===========
 idGameLocal::Init
@@ -286,7 +313,7 @@ void idGameLocal::Init( void ) {
 
 	Printf( "----- Initializing Game -----\n" );
 	Printf( "gamename: %s\n", GAME_VERSION );
-	Printf( "gamedate: %s\n", __DATE__ );
+	Printf( "gamedate: %s\n", ID__DATE__ );
 
 	// register game specific decl types
 	declManager->RegisterDeclType( "model",				DECL_MODELDEF,		idDeclAllocator<idDeclModelDef> );
@@ -332,6 +359,12 @@ void idGameLocal::Init( void ) {
 	gamestate = GAMESTATE_NOMAP;
 
 	Printf( "...%d aas types\n", aasList.Num() );
+
+
+	// DG: hack to support the Demo version of Doom3
+	common->GetAdditionalFunction(idCommon::FT_IsDemo, (idCommon::FunctionPointer*)&isDemoFnPtr, NULL);
+	//debugger support
+	common->GetAdditionalFunction(idCommon::FT_UpdateDebugger,(idCommon::FunctionPointer*) &updateDebuggerFnPtr,NULL);
 }
 
 /*
@@ -1172,7 +1205,7 @@ void idGameLocal::MapPopulate( void ) {
 idGameLocal::InitFromNewMap
 ===================
 */
-void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorld, idSoundWorld *soundWorld, bool isServer, bool isClient, int randseed ) {
+void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorld, idSoundWorld *soundWorld, bool isServer, bool isClient, int randseed) {
 
 	this->isServer = isServer;
 	this->isClient = isClient;
@@ -2196,13 +2229,13 @@ idGameLocal::RunFrame
 ================
 */
 gameReturn_t idGameLocal::RunFrame( const usercmd_t *clientCmds ) {
-	idEntity *	ent;
-	int			num;
-	float		ms;
-	idTimer		timer_think, timer_events, timer_singlethink;
-	gameReturn_t ret;
-	idPlayer	*player;
-	const renderView_t *view;
+	idEntity *			ent;
+	int					num;
+	float				ms;
+	idTimer				timer_think, timer_events, timer_singlethink;
+	gameReturn_t		ret;
+	idPlayer			*player;
+	const renderView_t	*view;
 
 #ifdef _DEBUG
 	if ( isMultiplayer ) {

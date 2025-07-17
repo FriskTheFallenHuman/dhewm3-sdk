@@ -5,11 +5,11 @@ include(CheckCXXCompilerFlag)
 include(TestBigEndian)
 
 option(BASE		"Build the base game code" ON)
-set(BASE_NAME	"base" CACHE STRING "Name of the mod built from game/ (will result in \${BASE_NAME}.dll)")
+set(BASE_NAME	"doom3cc" CACHE STRING "Name of the mod built from game/ (will result in \${BASE_NAME}.dll)")
 set(BASE_DEFS	"GAME_DLL" CACHE STRING "Compiler definitions for the mod built from game/")
 
-option(D3XP		"Build the d3xp game code" ON)
-set(D3XP_NAME	"d3xp" CACHE STRING "Name of the mod built from d3xp/ (will result in \${D3XP_NAME}.dll)")
+option(D3XP		"Build the d3xp/ game code" OFF) # TODO: for d3xp support, once the changes to d3xp/ have been made, set to ON
+set(D3XP_NAME	"doom3ccXP" CACHE STRING "Name of the mod built from d3xp/ (will result in \${D3XP_NAME}.dll)")
 set(D3XP_DEFS	"GAME_DLL;_D3XP;CTF" CACHE STRING "Compiler definitions for the mod built from d3xp/")
 
 option(ONATIVE	"Optimize for the host CPU" OFF)
@@ -29,12 +29,14 @@ set(src_game_mod
 	# add additional .cpp files of your mod in game/
 	# (that you added to the ones already existant in the SDK/in dhewm3)
 	# like "game/MyFile.cpp" (without quotes, one file per line)
+	d3cclib/CCBst.cpp
 )
 
 set(src_d3xp_mod
 	# add additional .cpp files of your mod in d3xp/
 	# (that you added to the ones already existant in the SDK/in dhewm3)
 	# like "d3xp/MyFile.cpp" (without quotes, one file per line)
+	d3cclib/CCBst.cpp
 )
 
 

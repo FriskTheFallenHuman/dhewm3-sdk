@@ -522,6 +522,9 @@ protected:
 	damageEffect_t *		damageEffects;
 
 private:
+	int						nextBloodPoolTime; // Blood Mod 
+	int						nextSplatTime; // Blood Mod
+
 	void					Event_GetJointHandle( const char *jointname );
 	void					Event_ClearAllJoints( void );
 	void					Event_ClearJoint( jointHandle_t jointnum );

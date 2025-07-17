@@ -143,6 +143,10 @@ void idInventory::Clear( void ) {
 	deplete_rate	= 0.0f;
 	deplete_ammount	= 0;
 	nextArmorDepleteTime = 0;
+	Secrets			= 0; // SnoopJeDi
+	kills			= 0; // SnoopJeDi
+	itemspickedup	= 0; // SnoopJeDi
+
 
 	memset( ammo, 0, sizeof( ammo ) );
 
@@ -202,6 +206,10 @@ void idInventory::GivePowerUp( idPlayer *player, int powerup, int msec ) {
 			case ADRENALINE:
 				def = gameLocal.FindEntityDef( "powerup_adrenaline", false );
 				break;
+			case HEALTHVIAL:
+				def = gameLocal.FindEntityDef( "item_health_vial", false );
+				break;  // SnoopJeDi
+
 		}
 		assert( def );
 		msec = def->dict.GetInt( "time" ) * 1000;
@@ -278,6 +286,10 @@ void idInventory::GetPersistantData( idDict &dict ) {
 	dict.SetInt( "selAudio", selAudio );
 	dict.SetInt( "pdaOpened", pdaOpened );
 	dict.SetInt( "turkeyScore", turkeyScore );
+	dict.SetInt( "Secrets", Secrets ); //SnoopJeDi
+	dict.SetInt( "kills", kills ); // SnoopJeDi
+	dict.SetInt( "itemspickedup", itemspickedup ); // SnoopJeDi
+
 
 	// pdas
 	for ( i = 0; i < pdas.Num(); i++ ) {
@@ -335,6 +347,10 @@ void idInventory::RestoreInventory( idPlayer *owner, const idDict &dict ) {
 	deplete_armor	= dict.GetInt( "deplete_armor", "0" );
 	deplete_rate	= dict.GetFloat( "deplete_rate", "2.0" );
 	deplete_ammount	= dict.GetInt( "deplete_ammount", "1" );
+	Secrets			= dict.GetInt( "Secrets", "0" ); //SnoopJeDi
+	kills			= dict.GetInt( "kills", "0" ); // SnoopJeDi
+	itemspickedup	= dict.GetInt( "itemspickedup", "0" ); // SnoopJeDi
+
 
 	// the clip and powerups aren't restored
 
@@ -437,6 +453,11 @@ void idInventory::Save( idSaveGame *savefile ) const {
 	savefile->WriteFloat( deplete_rate );
 	savefile->WriteInt( deplete_ammount );
 	savefile->WriteInt( nextArmorDepleteTime );
+	savefile->WriteInt( Secrets ); // SnoopJeDi
+	savefile->WriteInt( kills ); // SnoopJeDi
+	savefile->WriteInt( itemspickedup ); // SnoopJeDi
+	savefile->WriteInt( time ); //SnoopJeDi
+
 
 	for( i = 0; i < AMMO_NUMTYPES; i++ ) {
 		savefile->WriteInt( ammo[ i ] );
@@ -533,6 +554,11 @@ void idInventory::Restore( idRestoreGame *savefile ) {
 	savefile->ReadFloat( deplete_rate );
 	savefile->ReadInt( deplete_ammount );
 	savefile->ReadInt( nextArmorDepleteTime );
+	savefile->ReadInt( Secrets ); // SnoopJeDi
+	savefile->ReadInt( kills ); // SnoopJeDi
+	savefile->ReadInt( itemspickedup ); // SnoopJeDi
+	savefile->ReadInt( time ); // SnoopJeDi
+
 
 	for( i = 0; i < AMMO_NUMTYPES; i++ ) {
 		savefile->ReadInt( ammo[ i ] );
@@ -641,7 +667,7 @@ idInventory::AmmoIndexForAmmoClass
 ==============
 */
 ammo_t idInventory::AmmoIndexForAmmoClass( const char *ammo_classname ) const {
-	return idWeapon::GetAmmoNumForName( ammo_classname );
+		return idWeapon::GetAmmoNumForName( ammo_classname );
 }
 
 /*
@@ -650,7 +676,11 @@ idInventory::AmmoIndexForAmmoClass
 ==============
 */
 int idInventory::MaxAmmoForAmmoClass( idPlayer *owner, const char *ammo_classname ) const {
-	return owner->spawnArgs.GetInt( va( "max_%s", ammo_classname ), "0" );
+	if ( owner->extraammo ) {	//SnoopJedi - Moved by deadite4 in 1.3.1
+		return owner->spawnArgs.GetInt( va( "backpack_max_%s", ammo_classname ), "0" );
+	} else {
+		return owner->spawnArgs.GetInt( va( "max_%s", ammo_classname ), "0" );
+	}
 }
 
 /*
@@ -785,6 +815,8 @@ bool idInventory::Give( idPlayer *owner, const idDict &spawnArgs, const char *st
 		GivePowerUp( owner, BERSERK, SEC2MS( atof( value ) ) );
 	} else if ( !idStr::Icmp( statname, "mega" ) ) {
 		GivePowerUp( owner, MEGAHEALTH, SEC2MS( atof( value ) ) );
+	} else if ( !idStr::Icmp( statname, "item_health_vial" ) ) {	// don't need this, it's not an inventory item.
+		GivePowerUp( owner, HEALTHVIAL, SEC2MS( atof( value ) ) );
 	} else if ( !idStr::Icmp( statname, "weapon" ) ) {
 		tookWeapon = false;
 		for( pos = value; pos != NULL; pos = end ) {
@@ -840,6 +872,8 @@ bool idInventory::Give( idPlayer *owner, const idDict &spawnArgs, const char *st
 	} else if ( !idStr::Icmp( statname, "item" ) || !idStr::Icmp( statname, "icon" ) || !idStr::Icmp( statname, "name" ) ) {
 		// ignore these as they're handled elsewhere
 		return false;
+	} else if ( !idStr::Icmp( statname, "extraammo" ) ) { // SnoopJeDi
+		owner->extraammo = true;
 	} else {
 		// unknown item
 		gameLocal.Warning( "Unknown stat '%s' added to player's inventory", statname );
@@ -967,6 +1001,10 @@ idPlayer::idPlayer() {
 	buttonMask				= 0;
 	oldFlags				= 0;
 
+	statsUI					= NULL;		// SnoopJeDi
+	statsUIopen				= false;	// SnoopJeDi
+	statsDebug				= false;    // SnoopJeDi
+
 	lastHitTime				= 0;
 	lastSndHitTime			= 0;
 	lastSavingThrowTime		= 0;
@@ -990,6 +1028,8 @@ idPlayer::idPlayer() {
 	healthPulse				= false;
 	nextHealthTake			= 0;
 	healthTake				= false;
+	extraammo				= false; // SnoopJeDi
+
 
 	scoreBoardOpen			= false;
 	forceScoreBoard			= false;
@@ -1409,6 +1449,8 @@ void idPlayer::Init( void ) {
 	}
 
 	cvarSystem->SetCVarBool( "ui_chat", false );
+	ClearStats(); // SnoopJeDi
+
 }
 
 /*
@@ -1425,6 +1467,8 @@ void idPlayer::Spawn( void ) {
 	if ( entityNumber >= MAX_CLIENTS ) {
 		gameLocal.Error( "entityNum > MAX_CLIENTS for player.  Player may only be spawned with a client." );
 	}
+
+	s_music_vol.SetModified(); // SnoopJeDi - To make sure we get music faded properly
 
 	// allow thinking during cinematics
 	cinematic = true;
@@ -1476,6 +1520,10 @@ void idPlayer::Spawn( void ) {
 
 		objectiveSystem = uiManager->FindGui( "guis/pda.gui", true, false, true );
 		objectiveSystemOpen = false;
+		statsUI = uiManager->FindGui( "guis/stats.gui", true, false, true ); //SnoopJeDi - Set 'er up!
+		statsUIopen = false;
+		statsDebug = false;
+
 	}
 
 	SetLastHitTime( 0 );
@@ -1640,6 +1688,9 @@ void idPlayer::Save( idSaveGame *savefile ) const {
 	savefile->WriteInt( lastSndHitTime );
 	savefile->WriteInt( lastSavingThrowTime );
 
+	savefile->WriteBool( extraammo ); // SnoopJeDi
+
+
 	// idBoolFields don't need to be saved, just re-linked in Restore
 
 	inventory.Save( savefile );
@@ -1648,6 +1699,10 @@ void idPlayer::Save( idSaveGame *savefile ) const {
 	savefile->WriteUserInterface( hud, false );
 	savefile->WriteUserInterface( objectiveSystem, false );
 	savefile->WriteBool( objectiveSystemOpen );
+	savefile->WriteUserInterface( statsUI, false ); //SnoopJeDi
+	savefile->WriteBool( statsUIopen ); //SnoopJeDi
+	savefile->WriteBool( statsDebug ); //SnoopJeDi
+
 
 	savefile->WriteInt( weapon_soulcube );
 	savefile->WriteInt( weapon_pda );
@@ -1858,6 +1913,8 @@ void idPlayer::Restore( idRestoreGame *savefile ) {
 	savefile->ReadInt( lastHitTime );
 	savefile->ReadInt( lastSndHitTime );
 	savefile->ReadInt( lastSavingThrowTime );
+	savefile->ReadBool( extraammo ); //SnoopJeDi
+
 
 	// Re-link idBoolFields to the scriptObject, values will be restored in scriptObject's restore
 	LinkScriptVariables();
@@ -1872,6 +1929,10 @@ void idPlayer::Restore( idRestoreGame *savefile ) {
 	savefile->ReadUserInterface( hud );
 	savefile->ReadUserInterface( objectiveSystem );
 	savefile->ReadBool( objectiveSystemOpen );
+	savefile->ReadUserInterface( statsUI ); //SnoopJeDi
+	savefile->ReadBool( statsUIopen ); //SnoopJeDi
+	savefile->ReadBool( statsDebug ); //SnoopJeDi
+
 
 	savefile->ReadInt( weapon_soulcube );
 	savefile->ReadInt( weapon_pda );
@@ -2314,6 +2375,8 @@ void idPlayer::SavePersistantInfo( void ) {
 	inventory.GetPersistantData( playerInfo );
 	playerInfo.SetInt( "health", health );
 	playerInfo.SetInt( "current_weapon", currentWeapon );
+	playerInfo.SetBool( "extraammo", extraammo ); // SnoopJeDi
+
 }
 
 /*
@@ -2332,6 +2395,7 @@ void idPlayer::RestorePersistantInfo( void ) {
 
 	inventory.RestoreInventory( this, spawnArgs );
 	health = spawnArgs.GetInt( "health", "100" );
+	extraammo = spawnArgs.GetBool( "extraammo", 0 );
 	if ( !gameLocal.isClient ) {
 		idealWeapon = spawnArgs.GetInt( "current_weapon", "1" );
 	}
@@ -2514,6 +2578,17 @@ void idPlayer::UpdateHudAmmo( idUserInterface *_hud ) {
 		_hud->SetStateString( "player_clips", weapon.GetEntity()->ClipSize() ? va( "%i", ammoamount / weapon.GetEntity()->ClipSize() ) : "--" );
 		_hud->SetStateString( "player_allammo", va( "%i/%i", inclip, ammoamount - inclip ) );
 	}
+	const idDict *ammoDef = gameLocal.FindEntityDefDict("ammo_types", false);
+
+	if (ammoDef) {
+		for (int i = 0; i < AMMO_NUMTYPES; i++) {
+			const idKeyValue *ammoType = ammoDef->GetKeyVal(i);
+
+			if (ammoType) {
+				_hud->SetStateInt( va("player_%s", ammoType->GetKey().c_str()), inventory.ammo[i] );
+			}
+		}
+	}
 
 	_hud->SetStateBool( "player_ammo_empty", ( ammoamount == 0 ) );
 	_hud->SetStateBool( "player_clip_empty", ( weapon.GetEntity()->ClipSize() ? inclip == 0 : false ) );
@@ -2546,6 +2621,32 @@ void idPlayer::UpdateHudStats( idUserInterface *_hud ) {
 	_hud->SetStateInt( "player_armor", inventory.armor );
 	_hud->SetStateInt( "player_hr", heartRate );
 	_hud->SetStateInt( "player_nostamina", ( max_stamina == 0 ) ? 1 : 0 );
+
+	if ( statsDebug ) { // SnoopJeDi
+		int secrets = inventory.Secrets;
+		int totalsecrets = gameLocal.secretAreas.Num();
+		int kills = inventory.kills;
+		int monsters = gameLocal.monsters;
+		float time = inventory.time;
+		int min = idMath::Ftoi( ( float )time/60000 );
+		int sec = (time - 60000 * min)/1000;
+		int pickedup = inventory.itemspickedup;
+		int totalitems = gameLocal.items;
+		idStr timestr;
+		if ( sec > 9 ) {
+			timestr = va( "Time: %i:%i", min, sec );
+		} else {
+			timestr = va( "Time: %i:0%i", min, sec );
+		}
+		_hud->SetStateBool( "statsDebug", true );
+		_hud->SetStateString( "secrets", va( "Secrets: %i/%i (%i%%)", secrets, totalsecrets, totalsecrets != 0 ? idMath::FtoiFast( 100.0f * ( float )secrets/( float )totalsecrets ) : 0 ) );
+		_hud->SetStateString( "kills", va( "Kills: %i/%i (%i%%)", kills, monsters, monsters != 0 ? idMath::Ftoi( 100.0f * ( float )kills/( float )monsters ) : 0 ) );
+		_hud->SetStateString( "time", timestr );
+		_hud->SetStateString( "items", va( "Items: %i/%i (%i%%)", pickedup, totalitems, totalitems != 0 ? idMath::Ftoi( 100.0f * ( float )pickedup/( float )totalitems ) : 0 ) );
+	} else {
+		_hud->SetStateBool( "statsDebug", false );
+	}
+
 
 	_hud->HandleNamedEvent( "updateArmorHealthAir" );
 
@@ -2648,7 +2749,7 @@ void idPlayer::DrawHUD( idUserInterface *_hud ) {
 
 	// weapon targeting crosshair
 	if ( !GuiActive() ) {
-		if ( cursor && weapon.GetEntity()->ShowCrosshair() ) {
+		if ( cursor && weapon.GetEntity()->ShowCrosshair() && !statsUIopen ) { // SnoopJeDi
 			cursor->Redraw( gameLocal.realClientTime );
 		}
 	}
@@ -3047,7 +3148,9 @@ bool idPlayer::GivePowerUp( int powerup, int time ) {
 
 	if ( powerup >= 0 && powerup < MAX_POWERUPS ) {
 
-		if ( gameLocal.isServer ) {
+		if ( gameLocal.isServer && powerup != MEGAHEALTH && powerup != HEALTHVIAL && powerup != ARMORBONUS && powerup != MEGAARMOR ) { // SnoopJeDi - LMS fix
+			// CDoom powerups now work for clients
+
 			idBitMsg	msg;
 			byte		msgBuf[MAX_EVENT_PARAM_SIZE];
 
@@ -3057,7 +3160,8 @@ bool idPlayer::GivePowerUp( int powerup, int time ) {
 			ServerSendEvent( EVENT_POWERUP, &msg, false, -1 );
 		}
 
-		if ( powerup != MEGAHEALTH ) {
+		if ( powerup != MEGAHEALTH && powerup != HEALTHVIAL && powerup != ARMORBONUS && powerup != MEGAARMOR ) { //SnoopJeDi - LMS fix
+
 			inventory.GivePowerUp( this, powerup, time );
 		}
 
@@ -3096,12 +3200,59 @@ bool idPlayer::GivePowerUp( int powerup, int time ) {
 				break;
 			 }
 			case MEGAHEALTH: {
+				inventory.AddPickupName("Mega Health", "");
 				if ( spawnArgs.GetString( "snd_megahealth", "", &sound ) ) {
 					StartSoundShader( declManager->FindSound( sound ), SND_CHANNEL_ANY, 0, false, NULL );
 				}
 				def = gameLocal.FindEntityDef( "powerup_megahealth", false );
 				if ( def ) {
-					health = def->dict.GetInt( "inv_health" );
+					health += def->dict.GetInt( "inv_health" );
+				}
+				if ( health > 200 ) {
+					health = 200;
+				}
+				break;
+			}
+			case HEALTHVIAL: {   //SnoopJeDi
+				inventory.AddPickupName("Health Vial", "");
+
+				def = gameLocal.FindEntityDef( "item_health_vial", false );
+				if ( def && def->dict.GetString( "snd_acquire", "", &sound ) ) {
+					StartSoundShader( declManager->FindSound( sound ), SND_CHANNEL_ANY, 0, false, NULL );
+				}
+				if ( def ) {
+//					gameLocal.Printf ( "Gave player 1 health: GivePowerUp()\n" );
+					health += def->dict.GetInt( "inv_health" );
+					//health += 1;
+				//} else {
+				//	gameLocal.Printf ( "Didn't give player health: GivePowerUp()\n" );
+					if ( health > spawnArgs.GetInt( "maxbonushealth" ) ) {
+						health = spawnArgs.GetInt( "maxbonushealth" );
+					}
+				}
+				break;
+			}
+			case ARMORBONUS: {  //SnoopJeDi
+				inventory.AddPickupName("Armor Bonus", "");
+				def = gameLocal.FindEntityDef( "item_armor_shard", false );
+				if ( def && inventory.armor < spawnArgs.GetInt ( "maxbonusarmor" ) ) {
+					inventory.armor += def->dict.GetInt( "inv_armor" );
+					if ( inventory.armor > spawnArgs.GetInt ( "maxbonusarmor" ) ) {
+						inventory.armor = spawnArgs.GetInt ( "maxbonusarmor" );
+					}
+					inventory.nextArmorDepleteTime = 0;
+					inventory.armorPulse = true;
+				}
+				break;
+			}
+			case MEGAARMOR: {   //SnoopJeDi
+				inventory.AddPickupName("Mega Armor", "");
+				def = gameLocal.FindEntityDef( "item_mega_armor", false );
+				if ( def && inventory.armor < spawnArgs.GetInt ( "maxbonusarmor" ) ) {
+					inventory.armor += def->dict.GetInt( "inv_armor" );
+					if ( inventory.armor > spawnArgs.GetInt ( "maxbonusarmor" ) ) {
+						inventory.armor = spawnArgs.GetInt ( "maxbonusarmor" );
+					}
 				}
 				break;
 			 }
@@ -3546,7 +3697,7 @@ void idPlayer::NextWeapon( void ) {
 	const char *weap;
 	int w;
 
-	if ( !weaponEnabled || spectating || hiddenWeapon || gameLocal.inCinematic || gameLocal.world->spawnArgs.GetBool( "no_Weapons" ) || health < 0 ) {
+	if ( !weaponEnabled || spectating || hiddenWeapon || gameLocal.inCinematic || gameLocal.world->spawnArgs.GetBool( "no_Weapons" ) || health < 0 || statsUIopen ) { //SnoopJeDi
 		return;
 	}
 
@@ -3596,7 +3747,7 @@ void idPlayer::PrevWeapon( void ) {
 	const char *weap;
 	int w;
 
-	if ( !weaponEnabled || spectating || hiddenWeapon || gameLocal.inCinematic || gameLocal.world->spawnArgs.GetBool( "no_Weapons" ) || health < 0 ) {
+	if ( !weaponEnabled || spectating || hiddenWeapon || gameLocal.inCinematic || gameLocal.world->spawnArgs.GetBool( "no_Weapons" ) || health < 0 || statsUIopen ) { //SnoopJeDi
 		return;
 	}
 
@@ -3645,7 +3796,7 @@ idPlayer::SelectWeapon
 void idPlayer::SelectWeapon( int num, bool force ) {
 	const char *weap;
 
-	if ( !weaponEnabled || spectating || gameLocal.inCinematic || health < 0 ) {
+	if ( !weaponEnabled || spectating || gameLocal.inCinematic || health < 0 || statsUIopen ) { // SnoopJeDi
 		return;
 	}
 
@@ -3821,6 +3972,9 @@ idUserInterface *idPlayer::ActiveGui( void ) {
 	if ( objectiveSystemOpen ) {
 		return objectiveSystem;
 	}
+	if ( statsUIopen ) { //SnoopJeDi
+		return statsUI;
+	}
 
 	return focusUI;
 }
@@ -3991,7 +4145,7 @@ idPlayer::Weapon_GUI
 */
 void idPlayer::Weapon_GUI( void ) {
 
-	if ( !objectiveSystemOpen ) {
+	if ( !objectiveSystemOpen && !statsUIopen ) { // SnoopJeDi
 		if ( idealWeapon != currentWeapon ) {
 			Weapon_Combat();
 		}
@@ -4188,6 +4342,11 @@ bool idPlayer::HandleSingleGuiCommand( idEntity *entityGui, idLexer *src ) {
 
 	if ( token == ";" ) {
 		return false;
+	}
+
+	if ( token.Icmp( "statsOver" ) == 0 ) {  // SnoopJeDi
+		StatsProceed();
+		return true;
 	}
 
 	if ( token.Icmp( "addhealth" ) == 0 ) {
@@ -4887,7 +5046,7 @@ void idPlayer::UpdateViewAngles( void ) {
 	int i;
 	idAngles delta;
 
-	if ( !noclip && ( gameLocal.inCinematic || privateCameraView || gameLocal.GetCamera() || influenceActive == INFLUENCE_LEVEL2 || objectiveSystemOpen ) ) {
+	if ( !noclip && ( gameLocal.inCinematic || privateCameraView || gameLocal.GetCamera() || influenceActive == INFLUENCE_LEVEL2 || objectiveSystemOpen || statsUIopen ) ) { // SnoopJeDi
 		// no view changes at all, but we still want to update the deltas or else when
 		// we get out of this mode, our view will snap to a kind of random angle
 		UpdateDeltaViewAngles( viewAngles );
@@ -5382,7 +5541,7 @@ void idPlayer::TogglePDA( void ) {
 	}
 
 	if ( inventory.pdas.Num() == 0 ) {
-		ShowTip( spawnArgs.GetString( "text_infoTitle" ), spawnArgs.GetString( "text_noPDA" ), true );
+		//ShowTip( spawnArgs.GetString( "text_infoTitle" ), spawnArgs.GetString( "text_noPDA" ), true ); // SnoopJeDi - Removed "no PDA" text
 		return;
 	}
 
@@ -5606,7 +5765,7 @@ void idPlayer::PerformImpulse( int impulse ) {
 		case IMPULSE_19: {
 			// when we're not in single player, IMPULSE_19 is used for showScores
 			// otherwise it opens the pda
-			if ( !gameLocal.isMultiplayer ) {
+			if ( !gameLocal.isMultiplayer && !statsUIopen ) { // SnoopJeDi
 				if ( objectiveSystemOpen ) {
 					TogglePDA();
 				} else if ( weapon_pda >= 0 ) {
@@ -5637,6 +5796,11 @@ void idPlayer::PerformImpulse( int impulse ) {
 			if ( gameLocal.isClient || entityNumber == gameLocal.localClientNum ) {
 				gameLocal.mpGame.CastVote( gameLocal.localClientNum, false );
 			}
+			break;
+		}
+		// FIXME: was IMPULSE_30, but that needs to be in framework/UsercmdGen.h .. which is not per mod.
+		case 30: { // SnoopJeDi - At the request of many.
+			ToggleStatsDebug();
 			break;
 		}
 		case IMPULSE_40: {
@@ -5708,6 +5872,9 @@ void idPlayer::AdjustSpeed( void ) {
 	float speed;
 	float rate;
 
+	if ( GetUserInfo()->GetBool( "ui_autoRun" ) ) {
+		usercmd.buttons ^= BUTTON_RUN;   //SnoopJeDi: cusTom3 is briliant!
+	}
 	if ( spectating ) {
 		speed = pm_spectatespeed.GetFloat();
 		bobFrac = 0.0f;
@@ -6235,7 +6402,7 @@ void idPlayer::Think( void ) {
 		oldFlags = usercmd.flags;
 	}
 
-	if ( objectiveSystemOpen || gameLocal.inCinematic || influenceActive ) {
+	if ( objectiveSystemOpen || gameLocal.inCinematic || influenceActive || statsUIopen ) { // SnoopJeDi
 		if ( objectiveSystemOpen && AI_PAIN ) {
 			TogglePDA();
 		}
@@ -6267,7 +6434,7 @@ void idPlayer::Think( void ) {
 	}
 
 	// zooming
-	if ( ( usercmd.buttons ^ oldCmd.buttons ) & BUTTON_ZOOM ) {
+	if ( ( ( usercmd.buttons ^ oldCmd.buttons ) & BUTTON_ZOOM ) && !statsUIopen ) { //SnoopJeDi
 		if ( ( usercmd.buttons & BUTTON_ZOOM ) && weapon.GetEntity() ) {
 			zoomFov.Init( gameLocal.time, 200.0f, CalcFov( false ), weapon.GetEntity()->GetZoomFov() );
 		} else {
@@ -7401,6 +7568,8 @@ void idPlayer::AddAIKill( void ) {
 	int max_souls;
 	int ammo_souls;
 
+	inventory.kills++; // SnoopJeDi
+
 	if ( ( weapon_soulcube < 0 ) || ( inventory.weapons & ( 1 << weapon_soulcube ) ) == 0 ) {
 		return;
 	}
@@ -7733,7 +7902,7 @@ idPlayer::Event_OpenPDA
 ==================
 */
 void idPlayer::Event_OpenPDA( void ) {
-	if ( !gameLocal.isMultiplayer ) {
+	if ( !gameLocal.isMultiplayer && !statsUIopen ) { // SnoopJeDi
 		TogglePDA();
 	}
 }
@@ -7826,7 +7995,7 @@ void idPlayer::ClientPredictionThink( void ) {
 	buttonMask &= usercmd.buttons;
 	usercmd.buttons &= ~buttonMask;
 
-	if ( objectiveSystemOpen ) {
+	if ( objectiveSystemOpen || statsUIopen ) { // SnoopJeDi
 		usercmd.forwardmove = 0;
 		usercmd.rightmove = 0;
 		usercmd.upmove = 0;
@@ -8146,7 +8315,7 @@ void idPlayer::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 				common->Warning( "NET: no damage def for damage feedback '%d'\n", lastDamageDef );
 			}
 		}
-	} else if ( health > oldHealth && PowerUpActive( MEGAHEALTH ) && !stateHitch ) {
+	} else if ( health > oldHealth && PowerUpActive( MEGAHEALTH ) && PowerUpActive( HEALTHVIAL ) && !stateHitch ) {
 		// just pulse, for any health raise
 		healthPulse = true;
 	}
@@ -8546,3 +8715,103 @@ bool idPlayer::NeedsIcon( void ) {
 	// local clients don't render their own icons... they're only info for other clients
 	return entityNumber != gameLocal.localClientNum && ( isLagged || isChatting );
 }
+
+//SnoopJeDi -- BEGIN
+
+/*
+================
+idPlayer::SecretArea
+================
+*/
+void idPlayer::SecretArea( int areanum ) {
+	inventory.Secrets++;
+	//common->Printf( "^1Secrets Incremented\n" );
+	gameLocal.DeactivateSecretAreas( areanum );
+}
+
+/*
+================
+idPlayer::OpenStats
+================
+*/
+
+void idPlayer::OpenStats( idStr nextMap, int level_no ) {
+	StopFiring();
+	int secrets = inventory.Secrets;
+	int totalsecrets = gameLocal.secretAreas.Num();
+	int kills = inventory.kills;
+	int monsters = gameLocal.monsters;
+	float time = inventory.time;
+	int min = idMath::Ftoi( ( float )time/60000 );
+	int sec = (time - 60000 * min)/1000;
+	int pickedup = inventory.itemspickedup;
+	int totalitems = gameLocal.items;
+	float psecrets = ( float )secrets/( float )totalsecrets;
+	float pkills = ( float )kills/( float )monsters;
+	float pitems = ( float )pickedup/( float )totalitems;
+	idStr timestr;
+	if ( sec > 9 ) {
+		timestr = va( "Time: %i:%i", min, sec );
+	} else {
+		timestr = va( "Time: %i:0%i", min, sec );
+	}
+	statsUI->Activate( true, gameLocal.time );
+	statsUIopen = true;
+	statsUI->SetStateString( "secrets_found", va( "Secrets: %i/%i (%i%%)", secrets, totalsecrets, totalsecrets != 0 ? idMath::FtoiFast( 100.0f * psecrets ) : 0 ) );
+	statsUI->SetStateString( "kills", va( "Kills: %i/%i (%i%%)", kills, monsters, monsters != 0 ? idMath::Ftoi( 100.0f * pkills ) : 0 ) );
+	statsUI->SetStateString( "time", timestr );
+	statsUI->SetStateString( "items", va( "Items: %i/%i (%i%%)", pickedup, totalitems, totalitems != 0 ? idMath::Ftoi( 100.0f * pitems ) : 0 ) );
+	statsUI->SetStateFloat( "psecrets", psecrets );
+	statsUI->SetStateFloat( "pkills", pkills );
+	statsUI->SetStateFloat( "pitems", pitems );
+	statsUI->SetStateInt( "health", health );
+	statsUI->SetStateInt( "level_no", level_no );
+	//statsUI->SetStateString( "entering", va( "Now Entering: %s", nextMapName ) );
+	statsUI->SetStateString( "nextMap", va( nextMap ) );
+	gameSoundWorld->PlayShaderDirectly( "music_stats", SND_CHANNEL_ANY );
+	//common->Printf( "^1Nextmap is: %s", va( nextMap ) );
+}
+
+/*
+================
+idPlayer::StatsProceed
+================
+*/
+
+void idPlayer::StatsProceed() { //Ripped un-ceremoniously from idTarget_EndLevel
+	idStr nextMap;
+
+	nextMap = statsUI->GetStateString( "nextMap", "" );
+	if ( !nextMap ) {
+		gameLocal.Printf( "idPlayer::StatsProceed: no nextMap key\n" );
+		return;
+	}
+	gameLocal.sessionCommand = "map ";
+	gameLocal.sessionCommand += nextMap;
+
+}
+
+/*
+==================
+idPlayer::ClearStats
+==================
+*/
+
+void idPlayer::ClearStats() {
+	inventory.kills = 0;
+	inventory.Secrets = 0;
+	inventory.itemspickedup = 0;
+	//common->Printf( "^1ClearStats reset integers\n" );
+}
+
+/*
+==================
+idPlayer::ToggleStatsDebug
+==================
+*/
+
+void idPlayer::ToggleStatsDebug( void ) { // SnoopJeDi
+	statsDebug = !statsDebug;
+}
+
+//SnoopJeDi -- END

@@ -1922,6 +1922,55 @@ void idThread::Event_InfluenceActive( void ) {
 	}
 }
 
+
+
+//bc
+void idThread::Event_getClassEntity( const char *classname, int lastFound )
+{
+	int i;
+	lastFound++;
+
+	if (lastFound >= gameLocal.num_entities || lastFound < 0)
+	{
+		idThread::ReturnEntity( NULL );
+		return;
+	}
+
+	for ( i = lastFound; i < gameLocal.num_entities; i++ )
+	{
+		if ( !gameLocal.entities[ i ] )
+			continue;
+
+		//check if the classname matches.
+
+		//BC 12-18-2013 wildcard support.
+
+		idStr strClassname = classname;
+		int subIndex = strClassname.Find("*", false, 0, -1);
+
+		if (subIndex >= 0)
+		{
+			//Has a wildcard.
+			idStr classnameChunk = strClassname.Mid(0, subIndex);
+			idStr entityClassname = gameLocal.entities[ i ]->spawnArgs.GetString( "classname" );
+
+			if (idStr::Icmpn(classnameChunk, entityClassname, subIndex) != 0)
+			{
+				continue;
+			}
+		}
+		else if (idStr::Icmp(  classname, gameLocal.entities[ i ]->spawnArgs.GetString( "classname" )) != 0) //No wildcard. Do normal check.
+		{
+			continue;
+		}
+
+		idThread::ReturnEntity( gameLocal.entities[ i ] );
+		return;		
+	}
+
+	idThread::ReturnEntity( NULL );
+}
+
 int idGameEditExt::ThreadGetNum(const idThread* thread) const
 {
 	return const_cast<idThread*>(thread)->GetThreadNum();

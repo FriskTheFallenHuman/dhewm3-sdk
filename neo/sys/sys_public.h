@@ -56,7 +56,7 @@ typedef enum {
 typedef enum {
 	SE_NONE,				// evTime is still valid
 	SE_KEY,					// evValue is a key code, evValue2 is the down flag
-	SE_CHAR,				// evValue is an ascii char
+	SE_CHAR,				// evValue is a "High ASCII" (ISO-8859-1) char
 	SE_MOUSE,				// evValue and evValue2 are relative signed x / y moves
 	SE_MOUSE_ABS,			// evValue and evValue2 are absolute x / y coordinates in the window
 	SE_JOYSTICK,			// evValue is an axis number and evValue2 is the current state (-127 to 127)
@@ -209,6 +209,25 @@ unsigned char	Sys_GetConsoleKey( bool shifted );
 // does nothing on win32, as SE_KEY == SE_CHAR there
 // on other OSes, consider the keyboard mapping
 unsigned char	Sys_MapCharForKey( int key );
+// for keynums between K_FIRST_SCANCODE and K_LAST_SCANCODE
+// returns e.g. "SC_A" for K_SC_A
+const char* Sys_GetScancodeName( int key );
+// returns localized name of the key (between K_FIRST_SCANCODE and K_LAST_SCANCODE),
+// regarding the current keyboard layout - if that name is in ASCII or corresponds
+// to a "High-ASCII" char supported by Doom3.
+// Otherwise return same name as Sys_GetScancodeName()
+// !! Returned string is only valid until next call to this function !!
+const char* Sys_GetLocalizedScancodeName( int key );
+// the same, but using UTF-8 instead of "High-ASCII"
+const char* Sys_GetLocalizedScancodeNameUTF8( int key );
+// returns keyNum_t (K_SC_* constant) for given scancode name (like "SC_A")
+int Sys_GetKeynumForScancodeName( const char* name );
+
+// returns display name of the key (between K_FIRST_JOY and K_LAST_JOY)
+// With SDL2 it'll return the name in the SDL_GameController standard layout
+// (which is based on XBox/XInput => on Nintendo gamepads, A/B and X/Y will be flipped),
+// with SDL3 it will return the "real" button name
+const char* Sys_GetLocalizedJoyKeyName( int key );
 
 // keyboard input polling
 int				Sys_PollKeyboardInputEvents( void );
@@ -220,10 +239,23 @@ int				Sys_PollMouseInputEvents( void );
 int				Sys_ReturnMouseInputEvent( const int n, int &action, int &value );
 void			Sys_EndMouseInputEvents( void );
 
+// joystick input polling
+void			Sys_SetRumble( int device, int low, int hi );
+int				Sys_PollJoystickInputEvents( int deviceNum );
+int				Sys_ReturnJoystickInputEvent( const int n, int &action, int &value );
+void			Sys_EndJoystickInputEvents();
+
 // when the console is down, or the game is about to perform a lengthy
 // operation like map loading, the system can release the mouse cursor
 // when in windowed mode
 void			Sys_GrabMouseCursor( bool grabIt );
+
+// DG: added this for an ungodly hack for gamepad support
+// active = true means "currently a GUI with a cursor is active/focused"
+// active = false means "that GUI is not active anymore"
+// ui == NULL means "clear all currently remembered GUIs"
+class idUserInterface;
+void			Sys_SetInteractiveIngameGuiActive( bool active, idUserInterface* ui );
 
 void			Sys_ShowWindow( bool show );
 bool			Sys_IsWindowVisible( void );
@@ -351,6 +383,8 @@ const char *		Sys_GetThreadName( int *index = 0 );
 
 extern void Sys_InitThreads();
 extern void Sys_ShutdownThreads();
+
+bool Sys_IsMainThread();
 
 const int MAX_CRITICAL_SECTIONS		= 5;
 

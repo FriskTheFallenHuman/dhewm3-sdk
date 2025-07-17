@@ -33,13 +33,6 @@ If you have questions concerning this license or the applicable additional terms
 #include "idlib/BitMsg.h"
 
 //#include "framework/Unzip.h"
-// DG: instead of getting ZPOS64_T from some zlib header (via Unzip.h)
-//     just define it here
-#ifdef _WIN32
-typedef unsigned __int64 ZPOS64_T;
-#else
-typedef uint64_t ZPOS64_T;
-#endif
 
 /*
 ==============================================================
@@ -247,7 +240,11 @@ public:
 private:
 	idStr					name;			// name of the file in the pak
 	idStr					fullPath;		// full file path including pak file name
-	ZPOS64_T				zipFilePos;		// zip file info position in pak
+#ifdef _WIN32
+	unsigned __int64		zipFilePos;		// zip file info position in pak - should be ZPOS64_T, but I don't want miniz.h (through Unzip.h) in this header
+#else
+	unsigned long long int	zipFilePos;		// zip file info position in pak
+#endif
 	int						fileSize;		// size of the file
 	void *					z;				// unzip info
 };

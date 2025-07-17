@@ -57,6 +57,8 @@ If you have questions concerning this license or the applicable additional terms
 ===============================================================================
 */
 
+// FIXME: DG: this assumes 32bit time_t, but it's 64bit now, at least on some platforms incl. Win32 in modern VS
+//            => change it (to -1?) or does that break anything?
 static const ID_TIME_T	FILE_NOT_FOUND_TIMESTAMP	= 0xFFFFFFFF;
 static const int		MAX_PURE_PAKS				= 128;
 // DG: https://www.gnu.org/software/libc/manual/html_node/Limits-for-Files.html says

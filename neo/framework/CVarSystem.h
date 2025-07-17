@@ -308,7 +308,7 @@ ID_INLINE void idCVar::RegisterStaticVars( void ) {
 		for ( idCVar *cvar = staticVars; cvar; cvar = cvar->next ) {
 			cvarSystem->Register( cvar );
 		}
-		staticVars = (idCVar *)staticCVarsInvalid;
+		staticVars = (idCVar*)staticCVarsInvalid;
 	}
 }
 

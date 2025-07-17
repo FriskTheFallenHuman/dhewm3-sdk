@@ -4,13 +4,9 @@ project(dhewm3sdk)
 include(CheckCXXCompilerFlag)
 include(TestBigEndian)
 
-option(BASE		"Build the base game code" ON)
-set(BASE_NAME	"base" CACHE STRING "Name of the mod built from game/ (will result in \${BASE_NAME}.dll)")
-set(BASE_DEFS	"GAME_DLL" CACHE STRING "Compiler definitions for the mod built from game/")
-
-option(D3XP		"Build the d3xp game code" ON)
-set(D3XP_NAME	"d3xp" CACHE STRING "Name of the mod built from d3xp/ (will result in \${D3XP_NAME}.dll)")
-set(D3XP_DEFS	"GAME_DLL;_D3XP;CTF" CACHE STRING "Compiler definitions for the mod built from d3xp/")
+option(D3LE		"Build the d3le game code" ON)
+set(D3LE_NAME	"d3le" CACHE STRING "Name of the mod built from d3le/ (will result in \${D3LE_NAME}.dll)")
+set(D3LE_DEFS	"GAME_DLL;_D3XP;CTF" CACHE STRING "Compiler definitions for the mod built from d3le/")
 
 option(ONATIVE	"Optimize for the host CPU" OFF)
 
@@ -25,16 +21,10 @@ if(NOT MSVC) # GCC/clang or compatible, hopefully
 	endif()
 endif()
 
-set(src_game_mod
-	# add additional .cpp files of your mod in game/
+set(src_d3le_mod
+	# add additional .cpp files of your mod in d3le/
 	# (that you added to the ones already existant in the SDK/in dhewm3)
-	# like "game/MyFile.cpp" (without quotes, one file per line)
-)
-
-set(src_d3xp_mod
-	# add additional .cpp files of your mod in d3xp/
-	# (that you added to the ones already existant in the SDK/in dhewm3)
-	# like "d3xp/MyFile.cpp" (without quotes, one file per line)
+	# like "d3le/MyFile.cpp" (without quotes, one file per line)
 )
 
 
@@ -415,159 +405,83 @@ function(add_globbed_headers SRCLIST PATHPREFIX)
 	set(${SRCLIST} ${tmp_hdrs} ${${SRCLIST}} PARENT_SCOPE)
 endfunction()
 
-set(src_game
-	game/AF.cpp
-	game/AFEntity.cpp
-	game/Actor.cpp
-	game/Camera.cpp
-	game/Entity.cpp
-	game/BrittleFracture.cpp
-	game/Fx.cpp
-	game/GameEdit.cpp
-	game/Game_local.cpp
-	game/Game_network.cpp
-	game/Item.cpp
-	game/IK.cpp
-	game/Light.cpp
-	game/Misc.cpp
-	game/Mover.cpp
-	game/Moveable.cpp
-	game/MultiplayerGame.cpp
-	game/Player.cpp
-	game/PlayerIcon.cpp
-	game/PlayerView.cpp
-	game/Projectile.cpp
-	game/Pvs.cpp
-	game/SecurityCamera.cpp
-	game/SmokeParticles.cpp
-	game/Sound.cpp
-	game/Target.cpp
-	game/Trigger.cpp
-	game/Weapon.cpp
-	game/WorldSpawn.cpp
-	game/ai/AAS.cpp
-	game/ai/AAS_debug.cpp
-	game/ai/AAS_pathing.cpp
-	game/ai/AAS_routing.cpp
-	game/ai/AI.cpp
-	game/ai/AI_events.cpp
-	game/ai/AI_pathing.cpp
-	game/ai/AI_Vagary.cpp
-	game/gamesys/DebugGraph.cpp
-	game/gamesys/Class.cpp
-	game/gamesys/Event.cpp
-	game/gamesys/SaveGame.cpp
-	game/gamesys/SysCmds.cpp
-	game/gamesys/SysCvar.cpp
-	game/gamesys/TypeInfo.cpp
-	game/anim/Anim.cpp
-	game/anim/Anim_Blend.cpp
-	game/anim/Anim_Import.cpp
-	game/anim/Anim_Testmodel.cpp
-	game/script/Script_Compiler.cpp
-	game/script/Script_Interpreter.cpp
-	game/script/Script_Program.cpp
-	game/script/Script_Thread.cpp
-	game/physics/Clip.cpp
-	game/physics/Force.cpp
-	game/physics/Force_Constant.cpp
-	game/physics/Force_Drag.cpp
-	game/physics/Force_Field.cpp
-	game/physics/Force_Spring.cpp
-	game/physics/Physics.cpp
-	game/physics/Physics_AF.cpp
-	game/physics/Physics_Actor.cpp
-	game/physics/Physics_Base.cpp
-	game/physics/Physics_Monster.cpp
-	game/physics/Physics_Parametric.cpp
-	game/physics/Physics_Player.cpp
-	game/physics/Physics_RigidBody.cpp
-	game/physics/Physics_Static.cpp
-	game/physics/Physics_StaticMulti.cpp
-	game/physics/Push.cpp
+set(src_d3le
+	d3le/AF.cpp
+	d3le/AFEntity.cpp
+	d3le/Actor.cpp
+	d3le/Camera.cpp
+	d3le/Entity.cpp
+	d3le/BrittleFracture.cpp
+	d3le/Fx.cpp
+	d3le/GameEdit.cpp
+	d3le/Game_local.cpp
+	d3le/Game_network.cpp
+	d3le/Item.cpp
+	d3le/IK.cpp
+	d3le/Light.cpp
+	d3le/Misc.cpp
+	d3le/Mover.cpp
+	d3le/Moveable.cpp
+	d3le/MultiplayerGame.cpp
+	d3le/Player.cpp
+	d3le/PlayerIcon.cpp
+	d3le/PlayerView.cpp
+	d3le/Projectile.cpp
+	d3le/Pvs.cpp
+	d3le/SecurityCamera.cpp
+	d3le/SmokeParticles.cpp
+	d3le/Sound.cpp
+	d3le/Target.cpp
+	d3le/Trigger.cpp
+	d3le/Weapon.cpp
+	d3le/WorldSpawn.cpp
+	d3le/ai/AAS.cpp
+	d3le/ai/AAS_debug.cpp
+	d3le/ai/AAS_pathing.cpp
+	d3le/ai/AAS_routing.cpp
+	d3le/ai/AI.cpp
+	d3le/ai/AI_events.cpp
+	d3le/ai/AI_pathing.cpp
+	d3le/ai/AI_Vagary.cpp
+	d3le/gamesys/DebugGraph.cpp
+	d3le/gamesys/Class.cpp
+	d3le/gamesys/Event.cpp
+	d3le/gamesys/SaveGame.cpp
+	d3le/gamesys/SysCmds.cpp
+	d3le/gamesys/SysCvar.cpp
+	d3le/gamesys/TypeInfo.cpp
+	d3le/anim/Anim.cpp
+	d3le/anim/Anim_Blend.cpp
+	d3le/anim/Anim_Import.cpp
+	d3le/anim/Anim_Testmodel.cpp
+	d3le/script/Script_Compiler.cpp
+	d3le/script/Script_Interpreter.cpp
+	d3le/script/Script_Program.cpp
+	d3le/script/Script_Thread.cpp
+	d3le/physics/Clip.cpp
+	d3le/physics/Force.cpp
+	d3le/physics/Force_Constant.cpp
+	d3le/physics/Force_Drag.cpp
+	d3le/physics/Force_Field.cpp
+	d3le/physics/Force_Spring.cpp
+	d3le/physics/Physics.cpp
+	d3le/physics/Physics_AF.cpp
+	d3le/physics/Physics_Actor.cpp
+	d3le/physics/Physics_Base.cpp
+	d3le/physics/Physics_Monster.cpp
+	d3le/physics/Physics_Parametric.cpp
+	d3le/physics/Physics_Player.cpp
+	d3le/physics/Physics_RigidBody.cpp
+	d3le/physics/Physics_Static.cpp
+	d3le/physics/Physics_StaticMulti.cpp
+	d3le/physics/Push.cpp
+	d3le/Grabber.cpp
+	d3le/physics/Force_Grab.cpp
 
-	${src_game_mod}
+	${src_d3le_mod}
 )
 
-add_globbed_headers(src_game "game")
-
-set(src_d3xp
-	d3xp/AF.cpp
-	d3xp/AFEntity.cpp
-	d3xp/Actor.cpp
-	d3xp/Camera.cpp
-	d3xp/Entity.cpp
-	d3xp/BrittleFracture.cpp
-	d3xp/Fx.cpp
-	d3xp/GameEdit.cpp
-	d3xp/Game_local.cpp
-	d3xp/Game_network.cpp
-	d3xp/Item.cpp
-	d3xp/IK.cpp
-	d3xp/Light.cpp
-	d3xp/Misc.cpp
-	d3xp/Mover.cpp
-	d3xp/Moveable.cpp
-	d3xp/MultiplayerGame.cpp
-	d3xp/Player.cpp
-	d3xp/PlayerIcon.cpp
-	d3xp/PlayerView.cpp
-	d3xp/Projectile.cpp
-	d3xp/Pvs.cpp
-	d3xp/SecurityCamera.cpp
-	d3xp/SmokeParticles.cpp
-	d3xp/Sound.cpp
-	d3xp/Target.cpp
-	d3xp/Trigger.cpp
-	d3xp/Weapon.cpp
-	d3xp/WorldSpawn.cpp
-	d3xp/ai/AAS.cpp
-	d3xp/ai/AAS_debug.cpp
-	d3xp/ai/AAS_pathing.cpp
-	d3xp/ai/AAS_routing.cpp
-	d3xp/ai/AI.cpp
-	d3xp/ai/AI_events.cpp
-	d3xp/ai/AI_pathing.cpp
-	d3xp/ai/AI_Vagary.cpp
-	d3xp/gamesys/DebugGraph.cpp
-	d3xp/gamesys/Class.cpp
-	d3xp/gamesys/Event.cpp
-	d3xp/gamesys/SaveGame.cpp
-	d3xp/gamesys/SysCmds.cpp
-	d3xp/gamesys/SysCvar.cpp
-	d3xp/gamesys/TypeInfo.cpp
-	d3xp/anim/Anim.cpp
-	d3xp/anim/Anim_Blend.cpp
-	d3xp/anim/Anim_Import.cpp
-	d3xp/anim/Anim_Testmodel.cpp
-	d3xp/script/Script_Compiler.cpp
-	d3xp/script/Script_Interpreter.cpp
-	d3xp/script/Script_Program.cpp
-	d3xp/script/Script_Thread.cpp
-	d3xp/physics/Clip.cpp
-	d3xp/physics/Force.cpp
-	d3xp/physics/Force_Constant.cpp
-	d3xp/physics/Force_Drag.cpp
-	d3xp/physics/Force_Field.cpp
-	d3xp/physics/Force_Spring.cpp
-	d3xp/physics/Physics.cpp
-	d3xp/physics/Physics_AF.cpp
-	d3xp/physics/Physics_Actor.cpp
-	d3xp/physics/Physics_Base.cpp
-	d3xp/physics/Physics_Monster.cpp
-	d3xp/physics/Physics_Parametric.cpp
-	d3xp/physics/Physics_Player.cpp
-	d3xp/physics/Physics_RigidBody.cpp
-	d3xp/physics/Physics_Static.cpp
-	d3xp/physics/Physics_StaticMulti.cpp
-	d3xp/physics/Push.cpp
-	d3xp/Grabber.cpp
-	d3xp/physics/Force_Grab.cpp
-
-	${src_d3xp_mod}
-)
-
-add_globbed_headers(src_d3xp "d3xp")
+add_globbed_headers(src_d3le "d3le")
 
 set(src_idlib
 	idlib/bv/Bounds.cpp
@@ -651,63 +565,31 @@ endif()
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_idlib})
 
-if(BASE)
+if(D3LE)
 	if (AROS)
-		add_executable(base sys/aros/dll/dllglue.c ${src_game})
-		set_target_properties(base PROPERTIES OUTPUT_NAME "${BASE_NAME}.aros-${AROS_ARCH}")
+		add_executable(d3le sys/aros/dll/dllglue.c ${src_d3le})
+		set_target_properties(d3le PROPERTIES OUTPUT_NAME "${D3LE_NAME}.aros-${AROS_ARCH}")
 	else()
-		add_library(base SHARED ${src_game})
-		# so mods can create cdoom.dll instead of base.dll from the code in game/
-		set_target_properties(base PROPERTIES OUTPUT_NAME "${BASE_NAME}")
+		add_library(d3le SHARED ${src_d3le})
+		# so mods can create whatever.dll instead of d3le.dll from the code in d3le/
+		set_target_properties(d3le PROPERTIES OUTPUT_NAME "${D3LE_NAME}")
 	endif()
 
-	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_game})
+	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_d3le})
 
-	set_target_properties(base PROPERTIES PREFIX "")
-	set_target_properties(base PROPERTIES COMPILE_DEFINITIONS "${BASE_DEFS}")
-	target_include_directories(base PRIVATE "${CMAKE_SOURCE_DIR}/game")
-	set_target_properties(base PROPERTIES LINK_FLAGS "${ldflags}")
-	set_target_properties(base PROPERTIES INSTALL_NAME_DIR "@executable_path")
+	set_target_properties(d3le PROPERTIES PREFIX "")
+	set_target_properties(d3le PROPERTIES COMPILE_DEFINITIONS "${D3LE_DEFS}")
+	target_include_directories(d3le PRIVATE "${CMAKE_SOURCE_DIR}/d3le")
+	set_target_properties(d3le PROPERTIES LINK_FLAGS "${ldflags}")
+	set_target_properties(d3le PROPERTIES INSTALL_NAME_DIR "@executable_path")
 	if (AROS)
-		target_link_libraries(base idlib dll)
+		target_link_libraries(d3le idlib dll)
 	else()
-		target_link_libraries(base idlib)
+		target_link_libraries(d3le idlib)
 	endif()
 
 	if(NOT APPLE AND NOT WIN32)
-		install(TARGETS base
-				RUNTIME DESTINATION "${bindir}"
-				LIBRARY DESTINATION "${libdir}"
-				ARCHIVE DESTINATION "${libdir}"
-		)
-	endif()
-endif()
-
-if(D3XP)
-	if (AROS)
-		add_executable(d3xp sys/aros/dll/dllglue.c ${src_d3xp})
-		set_target_properties(d3xp PROPERTIES OUTPUT_NAME "${D3XP_NAME}.aros-${AROS_ARCH}")
-	else()
-		add_library(d3xp SHARED ${src_d3xp})
-		# so mods can create whatever.dll instead of d3xp.dll from the code in d3xp/
-		set_target_properties(d3xp PROPERTIES OUTPUT_NAME "${D3XP_NAME}")
-	endif()
-
-	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX neo FILES ${src_d3xp})
-
-	set_target_properties(d3xp PROPERTIES PREFIX "")
-	set_target_properties(d3xp PROPERTIES COMPILE_DEFINITIONS "${D3XP_DEFS}")
-	target_include_directories(d3xp PRIVATE "${CMAKE_SOURCE_DIR}/d3xp")
-	set_target_properties(d3xp PROPERTIES LINK_FLAGS "${ldflags}")
-	set_target_properties(d3xp PROPERTIES INSTALL_NAME_DIR "@executable_path")
-	if (AROS)
-		target_link_libraries(d3xp idlib dll)
-	else()
-		target_link_libraries(d3xp idlib)
-	endif()
-
-	if(NOT APPLE AND NOT WIN32)
-		install(TARGETS d3xp
+		install(TARGETS d3le
 				RUNTIME DESTINATION "${bindir}"
 				LIBRARY DESTINATION "${libdir}"
 				ARCHIVE DESTINATION "${libdir}"
